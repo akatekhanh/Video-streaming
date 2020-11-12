@@ -40,11 +40,10 @@ class Client:
 	def createWidgets(self):
 		"""Build GUI."""
 		# Create Setup button
-		self.setup = Button(self.master, width=20, padx=3, pady=3)
-		self.setup["text"] = "Setup"
-		self.setup["command"] = self.setupMovie
-		self.setup.grid(row=1, column=0, padx=2, pady=2)
-		
+		# self.setup = Button(self.master, width=20, padx=3, pady=3)
+		# self.setup["text"] = "Setup"
+		# self.setup["command"] = self.setupMovie
+		# self.setup.grid(row=1, column=0, padx=2, pady=2)
 		# Create Play button		
 		self.start = Button(self.master, width=20, padx=3, pady=3)
 		self.start["text"] = "Play"
@@ -59,8 +58,8 @@ class Client:
 		
 		# Create Teardown button
 		self.teardown = Button(self.master, width=20, padx=3, pady=3)
-		self.teardown["text"] = "Teardown"
-		self.teardown["command"] =  self.exitClient
+		self.teardown["text"] = "Stop"
+		self.teardown["command"] =  self.stopClient
 		self.teardown.grid(row=1, column=3, padx=2, pady=2)
 		
 		# Create a label to display the movie
@@ -91,6 +90,20 @@ class Client:
 			self.playEvent = threading.Event()
 			self.playEvent.clear()
 			self.sendRtspRequest(self.PLAY)
+
+	def stopClient(self):
+		self.sendRtspRequest(self.TEARDOWN)		
+		if self.state == self.PAUSE:
+			os.remove(CACHE_FILE_NAME + str(self.sessionId) + CACHE_FILE_EXT) # Delete the cache image from video
+		#  Receive Rtsp from server, if server accept close then re-connect again
+		if self.teardownAcked == 1:
+			self.state = self.INIT
+			self.rtspSeq = 0
+			self.sessionId = 0
+			self.requestSent = -1
+			self.teardownAcked = 0
+			self.connectToServer()
+			self.frameNbr = 0
 	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
@@ -117,6 +130,7 @@ class Client:
 				if self.teardownAcked == 1:
 					self.rtpSocket.shutdown(socket.SHUT_RDWR)
 					self.rtpSocket.close()
+					# reconnect to server
 					break
 					
 	def writeFrame(self, data):
@@ -141,6 +155,8 @@ class Client:
 			self.rtspSocket.connect((self.serverAddr, self.serverPort))
 		except:
 			tkinter.messagebox.showwarning('Connection Failed', 'Connection to \'%s\' failed.' %self.serverAddr)
+		# Send Init request to server
+		self.setupMovie()
 	
 	def sendRtspRequest(self, requestCode):
 		"""Send RTSP request to the server."""	
@@ -197,17 +213,17 @@ class Client:
 			
 			# Write the RTSP request to be sent.
 			# request = ...
-			request = 'TEARDOWN ' + (self.fileName) + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\nSession: ' + str(self.sessionId)
-			
+			request = 'TEARDOWN ' + (self.fileName) + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\nSession: ' + str(self.sessionId) 
+			self.requestSent = self.TEARDOWN
 			# Keep track of the sent request.
 			# self.requestSent = ...
-			self.requestSent = self.TEARDOWN
+			
 		else:
 			return 
 		
 		# Send the RTSP request using rtspSocket.
 		# ...
-		self.rtspSocket.send(request)
+		self.rtspSocket.send(request.encode("utf-8"))
 		
 		print('\nData sent:\n' + request)
 	
