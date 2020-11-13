@@ -1,6 +1,7 @@
 from socket import SOCK_DGRAM, SOCK_STREAM
 from tkinter import *
 from tkinter import messagebox
+import time
 import tkinter.messagebox
 from PIL import Image, ImageTk
 import socket, threading, sys, traceback, os
@@ -132,6 +133,8 @@ class Client:
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
 		self.startingTime = datetime.now()
+		oldframeNbr = 0
+		self.setClientStat()
 		ploss = 0
 		while True:
 			try:
@@ -146,7 +149,7 @@ class Client:
 						if (currFrameNbr - self.frameNbr > 1):
 							ploss = ploss + currFrameNbr - self.frameNbr - 1
 						self.frameNbr = currFrameNbr
-						self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
+						self.updateMovie(self.writeFrame(rtpPacket.getPayload()))	
 					self.totalPlayTime = datetime.now() - self.startingTime
 					self.lossRate = ploss / self.frameNbr * 100
 					print("LossRate : " + str(self.lossRate) + "    Loss Packet : " + str(ploss))
@@ -154,7 +157,9 @@ class Client:
 					print("Playtime : " + str(self.totalPlayTime))
 					self.dataRate = self.totalByte / abs(self.totalPlayTime.seconds) / 1024 
 					print("Data rate " + "{:.2f}".format(self.dataRate)+ " kb/s" )
-					self.setClientStat()
+					if (self.frameNbr - oldframeNbr > 20):
+						oldframeNbr = self.frameNbr
+						self.setClientStat()
 			
 			except:
 				# Stop listening upon requesting PAUSE or TEARDOWN
