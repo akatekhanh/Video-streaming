@@ -4,6 +4,8 @@ from tkinter import messagebox
 import tkinter.messagebox
 from PIL import Image, ImageTk
 import socket, threading, sys, traceback, os
+from datetime import datetime
+
 
 from RtpPacket import RtpPacket
 
@@ -21,6 +23,12 @@ class Client:
 	PAUSE = 2
 	TEARDOWN = 3
 	
+	startingTime = 0
+	totalPlayTime = 0
+	dataRate = 0
+	lossRate = 0
+	totalByte = 0
+	frameNbr = 0
 	# Initiation..
 	def __init__(self, master, serveraddr, serverport, rtpport, filename):
 		self.master = master
@@ -65,7 +73,23 @@ class Client:
 		# Create a label to display the movie
 		self.label = Label(self.master, height=19)
 		self.label.grid(row=0, column=0, columnspan=4, sticky=W+E+N+S, padx=5, pady=5) 
-	
+	def setClientStat(self):
+		# Create LossRate lable
+		self.lossRateStat = Label(self.master, width=20, padx=3, pady=3)
+		self.lossRateStat["text"] = "LossRate : " + str("{:.2f}".format(self.lossRate)) + " %"
+		self.lossRateStat.grid(row=2, column=1, padx=2, pady=2)	
+		# Create Datarate lable
+		self.dataRateStat = Label(self.master, width=20, padx=3, pady=3)
+		self.dataRateStat["text"] = "Data rate " + str("{:.2f}".format(self.dataRate))+ " Kb/s"
+		self.dataRateStat.grid(row=2, column=2, padx=2, pady=2)
+		# Create Play Time lable 
+		self.playTimeStat = Label(self.master, width=20, padx=3, pady=3)
+		self.playTimeStat["text"] = "Playtime : " + str(self.totalPlayTime)
+		self.playTimeStat.grid(row=2, column=3, padx=2, pady=2)
+		# Crate FPS lable
+		self.videoTimeStat = Label(self.master, width=20, padx=3, pady=3)
+		self.videoTimeStat["text"] = "Video's Time : " + str(self.frameNbr / 20) + " seconds"
+		self.videoTimeStat.grid(row=2, column=4, padx=2, pady=2)
 	def setupMovie(self):
 		"""Setup button handler."""
 		if self.state == self.INIT:
@@ -107,19 +131,31 @@ class Client:
 	
 	def listenRtp(self):		
 		"""Listen for RTP packets."""
+		self.startingTime = datetime.now()
+		ploss = 0
 		while True:
 			try:
 				data = self.rtpSocket.recv(20480)
-				if data:
+				if data: 
 					rtpPacket = RtpPacket()
 					rtpPacket.decode(data)
-					
 					currFrameNbr = rtpPacket.seqNum()
 					print("Current Seq Num: " + str(currFrameNbr))
-										
+					self.totalByte += rtpPacket.getPayloadLength() 			
 					if currFrameNbr > self.frameNbr: # Discard the late packet
+						if (currFrameNbr - self.frameNbr > 1):
+							ploss = ploss + currFrameNbr - self.frameNbr - 1
 						self.frameNbr = currFrameNbr
 						self.updateMovie(self.writeFrame(rtpPacket.getPayload()))
+					self.totalPlayTime = datetime.now() - self.startingTime
+					self.lossRate = ploss / self.frameNbr * 100
+					print("LossRate : " + str(self.lossRate) + "    Loss Packet : " + str(ploss))
+					print("Total data : " + str(self.totalByte))
+					print("Playtime : " + str(self.totalPlayTime))
+					self.dataRate = self.totalByte / abs(self.totalPlayTime.seconds) / 1024 
+					print("Data rate " + "{:.2f}".format(self.dataRate)+ " kb/s" )
+					self.setClientStat()
+			
 			except:
 				# Stop listening upon requesting PAUSE or TEARDOWN
 				if self.playEvent.isSet(): 
