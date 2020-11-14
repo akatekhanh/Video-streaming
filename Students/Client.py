@@ -144,7 +144,7 @@ class Client:
 					rtpPacket.decode(data)
 					currFrameNbr = rtpPacket.seqNum()
 					print("Current Seq Num: " + str(currFrameNbr))
-					self.totalByte += rtpPacket.getPayloadLength() 			
+					self.totalByte += len(rtpPacket.getPayload())			
 					if currFrameNbr > self.frameNbr: # Discard the late packet
 						if (currFrameNbr - self.frameNbr > 1):
 							ploss = ploss + currFrameNbr - self.frameNbr - 1
