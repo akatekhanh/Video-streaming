@@ -22,6 +22,7 @@ class Client:
 	PLAY = 1
 	PAUSE = 2
 	TEARDOWN = 3
+	DESCRIBE = 4;
 	
 	startingTime = 0
 	totalPlayTime = 0
@@ -69,6 +70,12 @@ class Client:
 		self.teardown["text"] = "Stop"
 		self.teardown["command"] =  self.stopClient
 		self.teardown.grid(row=1, column=3, padx=2, pady=2)
+
+		# Create Describe button
+		self.describe = Button(self.master, width=20, padx=3, pady=3)
+		self.describe["text"] = "Describe"
+		self.describe["command"] = self.describeMovie
+		self.describe.grid(row=1, column=4, padx=2, pady=2)
 		
 		# Create a label to display the movie
 		self.label = Label(self.master, height=19)
@@ -94,6 +101,9 @@ class Client:
 		"""Setup button handler."""
 		if self.state == self.INIT:
 			self.sendRtspRequest(self.SETUP)
+
+	def describeMovie(self):
+    		self.sendRtspRequest(self.DESCRIBE)
 	
 	def exitClient(self):
 		"""Teardown button handler."""
@@ -227,7 +237,21 @@ class Client:
 			# Keep track of the sent request.
 			# self.requestSent = ...
 			self.requestSent = self.PLAY
-		
+
+		# Describe request
+		elif requestCode == self.DESCRIBE and self.state == self.READY:
+			# Update RTSP sequence number.
+			# ...
+			self.rtspSeq += 1
+
+			# Write the RTSP request to be sent.
+			# request = ...
+			request = 'DESCRIBE ' + (self.fileName) + ' RTSP/1.0\nCSeq: ' + str(self.rtspSeq) + '\nSession: ' + str(self.sessionId)
+
+			# Keep track of the sent request.
+			# self.requestSent = ...
+			self.requestSent = self.DESCRIBE
+
 		# Pause request
 		elif requestCode == self.PAUSE and self.state == self.PLAYING:
 			# Update RTSP sequence number.
@@ -305,6 +329,13 @@ class Client:
 					elif self.requestSent == self.PLAY:
 						# self.state = ...
 						self.state = self.PLAYING
+
+					elif self.requestSent == self.DESCRIBE:
+    						
+    					#print('Data Received: ' + lines[3])
+						print('Data Received: ' + lines[3])
+						messagebox.showwarning('Data Received', 'Kinds of stream: ' + lines[3].split(' ')[0] + '\nEncoding: ' + lines[3].split(' ')[1])
+					
 					elif self.requestSent == self.PAUSE:
 						# self.state = ...
 						self.state = self.READY
